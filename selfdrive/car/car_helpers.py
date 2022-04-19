@@ -89,35 +89,6 @@ interfaces = load_interfaces(interface_names)
 
 # **** for use live only ****
 def fingerprint(logcan, sendcan):
-  fixed_fingerprint = os.environ.get('FINGERPRINT', "")
-  skip_fw_query = os.environ.get('SKIP_FW_QUERY', False)
-
-  if not fixed_fingerprint and not skip_fw_query:
-    # Vin query only reliably works thorugh OBDII
-    bus = 1
-
-    cached_params = Params().get("CarParamsCache")
-    if cached_params is not None:
-      cached_params = car.CarParams.from_bytes(cached_params)
-      if cached_params.carName == "mock":
-        cached_params = None
-
-    if cached_params is not None and len(cached_params.carFw) > 0 and cached_params.carVin is not VIN_UNKNOWN:
-      cloudlog.warning("Using cached CarParams")
-      vin = cached_params.carVin
-      car_fw = list(cached_params.carFw)
-    else:
-      cloudlog.warning("Getting VIN & FW versions")
-      _, vin = get_vin(logcan, sendcan, bus)
-      car_fw = get_fw_versions(logcan, sendcan)
-
-    exact_fw_match, fw_candidates = match_fw_to_car(car_fw)
-  else:
-    vin = VIN_UNKNOWN
-    exact_fw_match, fw_candidates, car_fw = True, set(), []
-
-  cloudlog.warning("VIN %s", vin)
-  Params().put("CarVin", vin)
 
   finger = gen_empty_fingerprint()
   candidate_cars = {i: all_legacy_fingerprint_cars() for i in [0, 1]}  # attempt fingerprint on both bus 0 and 1
@@ -158,6 +129,36 @@ def fingerprint(logcan, sendcan):
 
   exact_match = True
   source = car.CarParams.FingerprintSource.can
+
+  fixed_fingerprint = os.environ.get('FINGERPRINT', "")
+  skip_fw_query = os.environ.get('SKIP_FW_QUERY', False)
+
+  if not fixed_fingerprint and not skip_fw_query:
+    # Vin query only reliably works thorugh OBDII
+    bus = 1
+
+    cached_params = Params().get("CarParamsCache")
+    if cached_params is not None:
+      cached_params = car.CarParams.from_bytes(cached_params)
+      if cached_params.carName == "mock":
+        cached_params = None
+
+    if cached_params is not None and len(cached_params.carFw) > 0 and cached_params.carVin is not VIN_UNKNOWN:
+      cloudlog.warning("Using cached CarParams")
+      vin = cached_params.carVin
+      car_fw = list(cached_params.carFw)
+    else:
+      cloudlog.warning("Getting VIN & FW versions")
+      _, vin = get_vin(logcan, sendcan, bus)
+      car_fw = get_fw_versions(logcan, sendcan)
+
+    exact_fw_match, fw_candidates = match_fw_to_car(car_fw)
+  else:
+    vin = VIN_UNKNOWN
+    exact_fw_match, fw_candidates, car_fw = True, set(), []
+
+  cloudlog.warning("VIN %s", vin)
+  Params().put("CarVin", vin)
 
   # If FW query returns exactly 1 candidate, use it
   if len(fw_candidates) == 1:
